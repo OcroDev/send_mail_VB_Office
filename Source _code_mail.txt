@@ -1,0 +1,91 @@
+Sub ImprimirPdfSeparadosV3()
+'
+' En cada página del documento deben aparecer dos textos:
+' _nombrearchivo/ (para indicar el nombre del archivo del destinatario)
+' _correoelectronico/ (para que el programa seleccione el correo )
+
+
+' Declaracion de Variables
+Dim paginasDocumento As Integer
+Dim totalPaginas As Integer
+Dim pagActual As Integer
+Dim carpeta As String
+Dim nombreDocs As String
+Dim ficheroSalida As String
+Dim correo As String
+Dim titulo_correo As String
+Dim mensaje_correo As String
+
+' Asignacion de valores a variables
+totalPaginas = ActiveDocument.Range.Information(wdNumberOfPagesInDocument)
+paginasDocumento = InputBox("¿Cuántas páginas tiene cada documento?", "Número de páginas", 1)
+carpeta = InputBox("Indica la dirección de la carpeta donde se guardará el archivo", "Carpeta destino", "d:\temp\")
+titulo_correo = InputBox("Indica el tipo de recibo", "Asunto del correo", "Recibo de Nómina")
+'nombreDocs = InputBox("¿Qué nombre tendran los Documentos?", "Nombre documentos", "misdocs")
+mensaje_correo = "Buen día, " & nombreDocs & ", " & InputBox("Mensaje del correo", "Mensaje", " ")
+
+pagActual = 1
+Set miRango = ActiveDocument.Content
+Do While pagActual <= totalPaginas
+' La primera aparicion localiza el nombre de la persona
+    miRango.Find.Execute FindText:="(_)*(/)", MatchWildcards:=True
+    If (miRango.Find.Found = True) Then
+        miRango.Bold = True
+        nombreDocs = QuitarMarcas(miRango)
+        miRango.Delete
+        'MsgBox (nombreDocs)
+    End If
+' La segunda aparicion localiza el correo
+     miRango.Find.Execute FindText:="(_)*(/)", MatchWildcards:=True
+    If (miRango.Find.Found = True) Then
+        miRango.Bold = True
+        correo = QuitarMarcas(miRango)
+        miRango.Delete
+        'MsgBox (correo)
+    End If
+    
+    ficheroSalida = carpeta & "\" & nombreDocs & CInt(pagActual / paginasDocumento) & ".pdf"
+    ActiveDocument.ExportAsFixedFormat OutputFileName:=ficheroSalida _
+        , ExportFormat:= _
+        wdExportFormatPDF, OpenAfterExport:=False, OptimizeFor:= _
+        wdExportOptimizeForPrint, Range:=wdExportFromTo, From:=pagActual, To:=pagActual + paginasDocumento - 1, Item:= _
+        wdExportDocumentContent, IncludeDocProps:=True, KeepIRM:=True, _
+        CreateBookmarks:=wdExportCreateNoBookmarks, DocStructureTags:=True, _
+        BitmapMissingFonts:=True, UseISO19005_1:=False
+    ChangeFileOpenDirectory carpeta
+     EnviarCorreo correo:=correo, titulo:=titulo_correo, body:=mensaje_correo, fichero:=ficheroSalida
+pagActual = pagActual + paginasDocumento
+Loop
+MsgBox ("Generación Terminada.")
+End Sub
+' Recibe una cadena de la forma _nombre/ y quita el primer y ultimo caracter
+Function QuitarMarcas(ByVal cadena As String) As String
+
+    QuitarMarcas = Mid(cadena, 2, Len(cadena) - 2)
+     
+End Function
+Sub pruebaMarcas()
+
+    Dim cadena As String
+    cadena = "_DavidBueno-"
+    QuitarMarcas (cadena)
+End Sub
+
+Sub EnviarCorreo(ByVal correo As String, ByVal titulo As String, ByVal body As String, ByVal fichero As String)
+
+Dim olApp As Outlook.Application
+Set olApp = CreateObject("Outlook.Application")
+
+Dim olMail As Outlook.MailItem
+Set olMail = olApp.CreateItem(olMailItem)
+
+With olMail
+    .To = correo
+    .Subject = titulo
+    .body = body
+    .Attachments.Add (fichero)
+    .Send
+End With
+
+End Sub
+
